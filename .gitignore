@@ -13,7 +13,9 @@ dist/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
+# Allow project notebooks but ignore temporary/cache notebooks
+!baseline_evaluation.ipynb
+!exercise*.ipynb
 
 # Model files and checkpoints
 *.bin
