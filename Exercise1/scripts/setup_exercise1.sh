@@ -81,11 +81,28 @@ mkdir -p "${EXERCISE_DIR}/scripts"
 echo "  ✓ Directory structure created"
 
 echo ""
-echo "[5/7] Checking for modified modeling_llama.py..."
+echo "[5/7] Checking for modified modeling_llama files..."
+
+# Check for template file (the one we created)
+TEMPLATE_FILE="${EXERCISE_DIR}/modified_files/modeling_llama_mx_template.py"
 MODIFIED_FILE="${EXERCISE_DIR}/modified_files/modeling_llama.py"
-if [ -f "$MODIFIED_FILE" ]; then
-    echo "  ✓ Modified modeling_llama.py found"
-    
+
+# Use template if it exists, otherwise look for the direct file
+if [ -f "$TEMPLATE_FILE" ]; then
+    echo "  ✓ Template file found: modeling_llama_mx_template.py"
+    MODIFIED_FILE="$TEMPLATE_FILE"
+elif [ -f "$MODIFIED_FILE" ]; then
+    echo "  ✓ Modified file found: modeling_llama.py"
+else
+    echo "  ⚠ No modified files found"
+    echo "  Looked for:"
+    echo "    - ${TEMPLATE_FILE}"
+    echo "    - ${MODIFIED_FILE}"
+    echo "  Note: The modified file will be pulled from GitHub during clone"
+    MODIFIED_FILE=""
+fi
+
+if [ -n "$MODIFIED_FILE" ]; then
     # Create backup of original
     ORIGINAL_FILE="${TRANSFORMERS_DIR}/src/transformers/models/llama/modeling_llama.py"
     BACKUP_FILE="${TRANSFORMERS_DIR}/src/transformers/models/llama/modeling_llama.py.backup"
@@ -99,10 +116,6 @@ if [ -f "$MODIFIED_FILE" ]; then
     echo "  → Copying MX-integrated file to transformers..."
     cp "$MODIFIED_FILE" "$ORIGINAL_FILE"
     echo "  ✓ MX-integrated modeling_llama.py deployed"
-else
-    echo "  ⚠ Modified file not found at: $MODIFIED_FILE"
-    echo "  You need to create the modified modeling_llama.py first"
-    echo "  Or pull it from the GitHub repository"
 fi
 
 echo ""
