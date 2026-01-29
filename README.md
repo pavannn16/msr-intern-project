@@ -53,13 +53,17 @@ export HF_TOKEN=<your_token_here>
 - **Exercises 1 & 2 Due**: February 8, 2026, 5 PM PST
 - **Exercise 3 Due**: February 13, 2026
 - **Interview Window**: February 9-14, 2026
+- **Baseline Completed**: January 29, 2026 ✅ (62.10% accuracy)
+- **Exercise 1 Completed**: January 29, 2026 ✅ (Implementation ready)
 
 ## 🔐 Security & NDA
 This repository is **PRIVATE** to comply with Microsoft NDA requirements. All work is original and properly attributed.
 
 ## 📝 Progress Tracking
 - [x] Environment setup
-- [ ] Exercise 1: Linear layer quantization
+- [x] Baseline evaluation (62.10% accuracy) ✅
+- [x] Exercise 1: Linear layer quantization (implementation complete) ✅
+- [ ] Exercise 1: Evaluation & results
 - [ ] Exercise 2: KV cache quantization
 - [ ] Exercise 3: E5M3 scale factor (optional)
 - [ ] Technical report
