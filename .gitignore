@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Model files and checkpoints
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+models/
+checkpoints/
+
+# Hugging Face
+.cache/
+hf_cache/
+
+# Secrets and tokens
+*.token
+*.key
+.env
+HF_TOKEN*
+hf_token*
+
+# Large data files
+*.tar.gz
+*.zip
+datasets/
+
+# Colab specific
+sample_data/
+
+# OS specific
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs
+*.log
+logs/
+
+# Results (keep structure, ignore large outputs)
+results/*.json
+results/*.csv
+results/*.txt
