@@ -1,0 +1,194 @@
+Intern Exercise
+Although some instructions may not be fully clear, please approach this task as you
+would an assignment during your internship. Take the initiative to research
+independently, figure out and take the necessary steps, and complete the work to the
+best of your ability.
+We will review your submissions, and if it meets our expectations, we will schedule a
+single interview call to discuss your code, your learnings, and to assess your technical
+skills.
+Setting Up the Environment
+This section explains the necessary steps to set up your working environment on Google
+Colab for your assignment.
+1. Create a Notebook on Google Colab.
+2. Before running any code, ensure that the runtime is configured to use a GPU. To
+do this, click the drop‐down menu in the top‐right corner of the Colab interface,
+next to the RAM and Disk indicators. Select “Change runtime type” and choose T4
+GPU, or A100/H100 if available.
+
+3. Next, create a Hugging Face account. In this exercise, we will be using the Llama-
+3.2-1B model. To enable authentication for this model, generate an access token.
+
+Be sure to copy the token when it is displayed, as it will only be shown once.
+Instructions for creating and managing tokens can be found under user access
+tokens.
+4. You should also request access to the Llama-3.2-1B from the model page.
+5. Once you have completed the steps above, open the terminal (all code to be run
+in terminal and not in jupyter) in your Colab notebook and run the commands
+below. These commands will clone the transformers and microxcaling
+repositories into the /content directory. They will also install the lm‐eval package,
+which is used for benchmarking LLMs. Lastly, add mixroscaling to your Python
+path and define your HF_TOKEN using the access token you created in Hugging
+Face.
+git clone https://github.com/huggingface/transformers.git
+git clone https://github.com/microsoft/microxcaling.git
+cd /content/transformers && git checkout v4.57.6 && \
+pip install - e .
+pip install lm_eval ninja
+
+6. Lastly, add microxcaling to your Python path and define your HF_TOKEN using the
+access token you created on Hugging Face.
+export PYTHONPATH=/content/microxcaling
+export HF_TOKEN=<insert access token here>
+
+7. Now that your environment is set up, test it by use the command below that
+evaluates the Llama‐3.2‐1B model on the lambada_openai task.
+lm_eval -- model hf \
+-- model_args pretrained=meta - llama/Llama - 3.2 - 1B \
+-- tasks lambada_openai \
+-- device cuda \
+-- batch_size 32
+
+8. After the evaluation completes, you should see the results in the terminal, as
+shown below. Note that the full evaluation may take around 10 minutes. In this
+example, the model achieves an accuracy of 62.24%. Note that the accuracy
+value may vary slightly from run to run.
+
+Tip: If you would like to shorten the run-time, you can evaluate only 10% of the dataset
+by passing the ‘ - –limit 0.1’ argument to the lm-eval command in step (7).
+However, for final evaluation don’t use this argument.
+Note:
+• Google Colab removes all files when the session disconnects, so make sure to
+keep a backup of your work.
+• To open a command-line terminal, use the panel at the bottom of the Colab
+interface.
+• To edit files, you can use vi inside the terminal or upload updated files.
+• All files are stored under the /content directory.
+
+• Use the file browser panel on the left to view and manage files.
+
+Exercise 1: Quantize Linear Layers with MX
+For all three exercises, you will be using the microxcaling repository, which is a Python
+library that implements quantization using Microxcaling (MX) data formats. MX
+
+is a block-floating-point–style quantization technique designed for efficient low-
+precision computation in machine learning workloads.
+
+In this exercise, you are expected to learn and apply the MX library and use the MX format
+to quantize both model weights and activations in model’s linear layers. We recommend
+familiarizing yourself with the library and reading through the full readme file to get a
+better idea.
+1. Learn about how to integrate the MX library into PyTorch models and operations
+by reviewing the MX Integration Guide
+2. Examine the two files in the examples folder in the repository: ffn.py and
+ffn_mx_manual.py . Compare these two files. ffn.py is a standard feed-forward
+network implementation using native PyTorch modules, and ffn_mx_manual.py is
+the same model rewritten with MX-integrated layers. Pay attention to how the
+torch.nn.Linear layers in ffn.py are replaced with the mx. Linear function from
+the mx library in ffn_mx_manual.py . Note that the input tensor is passed together
+with mx_specs , i.e., the quantization datatype.
+3. Apply the same approach to quantize the linear layers in the Llama‐3.2‐1B model.
+The linear layers to be quantize include Q, K, V, and O projections in the attention
+module and up, down, and gate projections in the multi-layer perceptron (MLP)
+module.
+Hint: Since this is a Llama model, you will need to modify the linear layers in:
+transformers/src/transformers/models/llama/modeling_llama.py
+4. For this exercise, use mxfp6_e2m3 as the datatype for activations and
+mxfp4_e2m1 for model weights. You will need to declare the corresponding MX
+specs and pass them it to each Linear call. Please see MX-Compatible Formats
+for more details on how to declare and configure MX specs.
+Hint: Instead of hard‐coding the MX specifications, you can also parse the MX options
+from the command line. Guidance on how to do this is provided in the documentation on
+the same readme page.
+5. Rerun the Llama‐3.2‐1B evaluation with lm‐eval using your MX‐integrated linear
+layers. Compare the results to the baseline by observing any changes in runtime
+and model accuracy.
+
+Exercise 2: Quantize KV Cache with MX
+In this exercise, you are expected to integrate MX quantization on KV cache in the same
+Llama model.
+1. Make sure to use eager attention. Different attention modules are declared in
+modelling_llama .py , so make sure you select the eager version for this exercise.
+2. You can simulate quantization of the KV cache by quantizing the K and V tensors
+before they are passed into the self‐attention computations, i.e., before the
+Q@K
+T and softmax(QK
+T
+)@ V matrix multiplications.
+
+3. Different from the previous exercise, you will be quantizing K and V tensors, not
+Linear layers. Determine how to quantize a tensor into an MX format using the MX
+library. You are expected to explore the library’s API and documentation to
+understand how MX quantization is applied and to use that knowledge when
+implementing your solution.
+4. Use mxfp4_e2m1 format for both K and V quantization.
+5. Rerun the evaluation, note any changes you observe.
+Exercise 3: Add support for E5M3 scale factor (Optional)
+Report for this section is not required.
+In this exercise, you will learn about scale factors in MX data formats and implement a
+new one. For this step, you will need a solid understanding of the repository structure to
+determine which files must be modified and how the components interact. As an intern,
+this is an opportunity to demonstrate your ability to read and navigate a complex
+codebase, identify the relevant modules, and make the necessary changes
+independently.
+1. Begin by understanding the MXFP family of datatypes and how the E8M0 scale
+factor is defined and applied. The following resources provide useful background
+information:
+• Microscaling Data Formats for Deep Learning
+• OCP Microscaling Specification
+2. Understand how the E8M0 scale factor is implemented in the MX library. This
+script includes CUDA implementation of E8M0 shared‐scale computation and
+this script includes the element quantization to any datatype (e.g., FP4) after
+scales are extracted.
+3. Based on your understanding from steps 1–2, add support for a new E5M3 scale
+factor.
+Hint: E5M3 scale calculation will involve just calculating scale and storing it as E5M3
+type.
+
+4. Define a new MX format with E5M3 scale factors, FP4 (E2M1) elements, and the
+block size of 16. Rerun the same model evaluation with all linear layers and KV
+cache quantized to your new MX format.
+Notes:
+• The MX library provides C++, CUDA, and PyTorch kernels for performing
+quantization and related steps. For this exercise, CUDA will be used.
+o Exercise Requirement:
+▪ Implement scale factor computation using the CUDA kernel.
+▪ Ensure the CUDA execution path is used at runtime.
+▪ Set custom_cuda=True in MX specs.
+▪ Run on a GPU runtime (e.g., in Google Colab) to invoke the
+CUDA kernel.
+o Optional / Verification:
+▪ You may implement C++ or PyTorch versions to verify CUDA
+output.
+▪ These are not required for successful completion of this
+exercise.
+
+• Use round‐to‐nearest even rounding option when computing E5M3 scales.
+• You can compute the maximum norm for the E5M3 representation using the
+following:
+ebits, mbits = 5, 5
+emax = 2**(ebits - 1)
+max_norm = 2**emax * 1.75
+Assignment Report & Code
+A good technical report would typically include the following topics. Applicants are
+welcome to organize the report in their own style, provided the core concepts are clearly
+explained in short.
+• How the MX emulator works, including quantization, rounding behavior, and
+linear layer implementation
+• Effects of quantization on different model components:
+o Weights
+o Activations
+o KV cache
+• Impact of quantization on model accuracy and performance
+• Evaluation results across different stages of the exercise, with tables or graphs
+where appropriate
+
+• Strategies for model compression that balance accuracy and efficiency
+• Key considerations when quantizing weights vs activations vs KV cache
+• Ideas for improving results, including approaches for going below 4-bit
+quantization and associated challenges
+Most importantly – Submit whatever you have ready by February 8, 5 PM PST.
+Submission Guidelines: Originality and AI Use
+You may use ChatGPT or other AI tools to assist with writing or code generation, but you
+must clearly credit any AI-generated content and explicitly identify which parts were
+produced with AI assistance. Most importantly, you are expected to fully understand all
+AI-generated code or text and be able to explain it in detail.

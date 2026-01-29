@@ -1,0 +1,72 @@
+Interview Invitation – Research Intern (AI/ML Numerics & Efficiency)
+Inbox
+
+AI Overview
+Gaurav invited Pavan to the next stage for the Research Intern role, requiring a signed NDA for the take-home assessment.
+Pavan confirmed interest, signed the NDA, and requested details for the coding assessment.
+Gaurav sent the take-home assignment with deadlines for Exercises 1/2 (Feb 8) and optional Exercise 3 (Feb 13), requesting interview availability Feb 9–14.
+By Gemini; there may be mistakes. Learn more
+
+Gaurav Kolhe <gauravkolhe@microsoft.com>
+Attachments
+Wed, Jan 28, 10:28 AM (1 day ago)
+to me
+
+Dear Pavan Chauhan,
+Thank you for your interest in the Research Intern – AI/ML Numerics & Efficiency position. We are pleased to inform you that, after reviewing your application, we would like to move forward with your candidacy.
+The next stage of the selection process will consist of a coding assessment, followed by one to two interview rounds with the research team.
+The coding assessment is a take-home assignment. While the tasks themselves are not expected to require two weeks of continuous work, we will provide a two-week window to complete and submit the assessment so that you have sufficient flexibility to work on it alongside your other commitments.
+Attached to this email, you will find a Non-Disclosure Agreement (NDA). Please review and sign the NDA, as it is required to participate in the assessment and subsequent interviews.
+By replying to this email with the signed NDA, you are confirming your interest and consenting to move forward with the assessment and interview process under the terms described above.
+Once we receive your response, we will share additional details regarding the assessment instructions, timeline, and next steps.
+We appreciate your interest in opportunities at Microsoft and look forward to learning more about your experience and work. Please feel free to reach out if you have any questions.
+Best regards,
+Gaurav Kolhe
+Microsoft
+
+...
+
+[Message clipped]  View entire message
+ One attachment
+  •  Scanned by Gmail
+
+Pavan Chauhan <pavanc1604@gmail.com>
+Attachments
+Wed, Jan 28, 12:39 PM (22 hours ago)
+to Gaurav
+
+Hi Gaurav,
+
+Thanks for reaching out! I’m looking forward to diving into the process for the AI/ML Numerics & Efficiency role. Please find my signed Non-Disclosure Agreement (NDA) attached to this email as requested.
+
+I look forward to receiving the additional details regarding the take-home coding assessment and the next steps in the timeline.
+
+Yours sincerely,
+
+Pavan
+
+ One attachment
+  •  Scanned by Gmail
+
+Gaurav Kolhe
+Attachments
+10:31 AM (42 minutes ago)
+to me
+
+Hi,
+Thank you for taking the time to interview for this position.
+Attached is the take-home assignment. Please review it carefully and follow the NDA and integrity guidelines.
+As this is an internship role, we expect you to work independently. This simulates the internship experience, where you take initiative to research, unblock yourself, make reasonable assumptions, and complete the work to the best of your ability. If you encounter a truly concrete blocker, you may reach out.
+Timeline:
+Exercises 1 and 2: submit by February 8, 5 PM PST. Submit whatever portions are ready. This should give you 2 weekend to work on a problem.
+Exercise 3: optional but encouraged; submissions not accepted after February 13. No report required at this stage.
+Interview: Try to keep some availability for an interview on dates February 9–14 (Monday–Friday, 8 AM–5 PM PST) for a 1.5-hour slot. We aim to conclude the interview process that week itself if all works out.
+Completing the assignment earlier than the deadline is welcomed, as it allows us to move to the next step and reach a timely decision.
+Looking forward to reviewing your work.
+Best regards,
+Gaurav
+
+From: Pavan Chauhan <pavanc1604@gmail.com>
+Sent: Wednesday, January 28, 2026 12:39 PM
+To: Gaurav Kolhe <gauravkolhe@microsoft.com>
+Subject: [EXTERNAL] Re: Interview Invitation – Research Intern (AI/ML Numerics & Efficiency)
