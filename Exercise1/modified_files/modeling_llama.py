@@ -17,10 +17,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 from torch import nn
+import torch.nn.functional as F
+import torch.nn.functional as F
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -63,15 +65,15 @@ if '/content/msr-intern-project/Exercise1' not in sys.path:
 
 # MX library imports for quantization
 try:
+    import mx
     from mx.specs import MxSpecs
-    from mx import linear as mx_linear
     MX_AVAILABLE = True
 except ImportError:
     import warnings
     warnings.warn("MX library not found. Running without quantization.")
     MX_AVAILABLE = False
     MxSpecs = dict
-    mx_linear = None
+    mx = None
 
 # Exercise 1 MX configuration helper
 try:
@@ -139,13 +141,15 @@ def apply_mx_linear(input_tensor: torch.Tensor,
     
     try:
         # Apply MX quantized linear transformation
-        # mx_linear.linear signature: (input, weight, bias, mx_specs)
-        output = mx_linear.linear(
-            input_tensor, 
-            weight, 
-            bias=bias,
-            mx_specs=mx_specs
+        # mx.linear signature: (x, w, mx_specs, **kwargs)
+        output = mx.linear(
+            x=input_tensor, 
+            w=weight, 
+            mx_specs=MxSpecs(**mx_specs) if mx_specs else None
         )
+        # Add bias if provided (MX linear doesn't handle bias automatically)
+        if bias is not None:
+            output = output + bias
         return output
     except Exception as e:
         logger.warning(f"MX linear failed, falling back to standard: {e}")
@@ -267,7 +271,7 @@ class LlamaMLP(nn.Module):
         self.intermediate_size = config.intermediate_size
         
         # Store MX specs for quantization
-        self.mx_specs = GLOBAL_MX_SPECS if USE_MX_QUANTIZATION else None
+        self.mx_specs = EXERCISE1_MX_SPECS if USE_MX_QUANTIZATION else None
         
         # Linear layers - kept as nn.Linear for weight storage
         # but forward pass will use MX quantization
@@ -341,7 +345,7 @@ class LlamaAttention(nn.Module):
         self.is_causal = True
 
         # Store MX specs
-        self.mx_specs = GLOBAL_MX_SPECS if USE_MX_QUANTIZATION else None
+        self.mx_specs = EXERCISE1_MX_SPECS if USE_MX_QUANTIZATION else None
 
         # Projection layers (weights stored as nn.Linear, forward uses MX)
         self.q_proj = nn.Linear(
