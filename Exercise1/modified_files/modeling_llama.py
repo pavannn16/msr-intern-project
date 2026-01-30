@@ -141,16 +141,14 @@ def apply_mx_linear(input_tensor: torch.Tensor,
     
     try:
         # Apply MX quantized linear transformation
-        # mx.linear signature: (input, weight, mx_specs)
-        output = mx.linear(
+        # mx.linear internally calls apply_mx_specs(), pass dict directly
+        # Correct signature: mx.linear(input, weight, bias, mx_specs, ...)
+        return mx.linear(
             input_tensor, 
-            weight, 
-            mx_specs=MxSpecs(**mx_specs) if mx_specs else None
+            weight,
+            bias,  # Pass bias directly - it will be quantized inside mx.linear
+            mx_specs
         )
-        # Add bias if provided (MX linear doesn't handle bias automatically)
-        if bias is not None:
-            output = output + bias
-        return output
     except Exception as e:
         logger.warning(f"MX linear failed, falling back to standard: {e}")
         return F.linear(input_tensor, weight, bias)
