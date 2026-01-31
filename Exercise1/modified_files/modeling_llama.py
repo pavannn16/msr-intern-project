@@ -158,14 +158,19 @@ def apply_mx_linear(input_tensor: torch.Tensor,
         if mx_linear is None:
             raise RuntimeError("MX is not available (mx_linear is None)")
 
-        # Apply MX quantized linear transformation.
-        # Use keyword arguments for clarity and to ensure correct binding.
-        return mx_linear.linear(
-            input_tensor,
-            weight,
-            bias=bias,
-            mx_specs=mx_specs,
-        )
+        # `from mx import linear as mx_linear` can yield either:
+        #   - a module/object with a `.linear(...)` function
+        #   - the `linear(...)` function directly
+        # Handle both to stay compatible across microxcaling versions.
+        mx_fn = getattr(mx_linear, "linear", mx_linear)
+        if not callable(mx_fn):
+            raise TypeError(f"Unexpected mx.linear object: {type(mx_linear)!r}")
+
+        # Prefer explicit keyword arguments; fall back to positional if needed.
+        try:
+            return mx_fn(input_tensor, weight, bias=bias, mx_specs=mx_specs)
+        except TypeError:
+            return mx_fn(input_tensor, weight, bias, mx_specs)
     except Exception as e:
         # Fail loudly so we do not silently benchmark a non-MX path.
         raise RuntimeError(f"MX linear failed (USE_MX_QUANTIZATION=1): {e}") from e
