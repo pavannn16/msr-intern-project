@@ -22,7 +22,6 @@ from typing import Callable, Optional, Tuple, Union
 import torch
 from torch import nn
 import torch.nn.functional as F
-import torch.nn.functional as F
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -57,15 +56,14 @@ logger = logging.get_logger(__name__)
 import sys
 import os
 
-# Add microxcaling to path if needed
-if '/content/microxcaling' not in sys.path:
-    sys.path.insert(0, '/content/microxcaling')
-if '/content/msr-intern-project/Exercise1' not in sys.path:
-    sys.path.insert(0, '/content/msr-intern-project/Exercise1')
+# Add microxcaling to path if needed (Colab convention). Keep this defensive and portable.
+for _p in ("/content/microxcaling/python", "/content/microxcaling"):
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
 
 # MX library imports for quantization
 try:
-    import mx
+    from mx import linear as mx_linear
     from mx.specs import MxSpecs
     MX_AVAILABLE = True
 except ImportError:
@@ -73,28 +71,45 @@ except ImportError:
     warnings.warn("MX library not found. Running without quantization.")
     MX_AVAILABLE = False
     MxSpecs = dict
-    mx = None
+    mx_linear = None
 
-# Exercise 1 MX configuration helper
-try:
-    from mx_config_helper import create_mx_specs_exercise1
-except ImportError:
-    # Fallback if helper not available
-    def create_mx_specs_exercise1():
-        if not MX_AVAILABLE:
-            return {}
-        return {
-            'scale_bits': 8,
-            'block_size': 32,
-            'w_elem_format': 'fp4_e2m1',
-            'a_elem_format': 'fp6_e2m3',
-            'custom_cuda': True,
-            'quantize_backprop': False,
-            'round': 'nearest'
-        }
+
+def create_mx_specs_exercise1() -> dict:
+    """Create MX specs for Exercise 1.
+
+    This function is intentionally self-contained because this file is deployed
+    into the installed `transformers` package during evaluation.
+    """
+    if not MX_AVAILABLE:
+        return {}
+
+    mx_specs = MxSpecs()
+
+    mx_specs["scale_bits"] = 8
+    mx_specs["block_size"] = 32
+    mx_specs["shared_exp_method"] = "max"
+
+    mx_specs["w_elem_format"] = "fp4_e2m1"
+    mx_specs["a_elem_format"] = "fp6_e2m3"
+
+    mx_specs["custom_cuda"] = True
+    mx_specs["quantize_backprop"] = False
+
+    # Round-to-nearest-even is typically the most numerically stable choice.
+    mx_specs["round"] = "even"
+
+    # Keep vector ops at full precision.
+    mx_specs["bfloat"] = 0
+    mx_specs["fp"] = 0
+
+    return mx_specs
 
 # MX Quantization flag - can be controlled via environment variable
-USE_MX_QUANTIZATION = os.environ.get('USE_MX_QUANTIZATION', '1') == '1' and MX_AVAILABLE
+_REQUEST_MX = os.environ.get("USE_MX_QUANTIZATION", "1") == "1"
+USE_MX_QUANTIZATION = _REQUEST_MX and MX_AVAILABLE
+
+if _REQUEST_MX and not MX_AVAILABLE:
+    logger.warning("USE_MX_QUANTIZATION=1 but MX is not importable; running without quantization.")
 
 # Get MX specs for Exercise 1
 EXERCISE1_MX_SPECS = create_mx_specs_exercise1() if USE_MX_QUANTIZATION else None
@@ -140,18 +155,20 @@ def apply_mx_linear(input_tensor: torch.Tensor,
         return F.linear(input_tensor, weight, bias)
     
     try:
-        # Apply MX quantized linear transformation
-        # mx.linear internally calls apply_mx_specs(), pass dict directly
-        # Correct signature: mx.linear(input, weight, bias, mx_specs, ...)
-        return mx.linear(
-            input_tensor, 
+        if mx_linear is None:
+            raise RuntimeError("MX is not available (mx_linear is None)")
+
+        # Apply MX quantized linear transformation.
+        # Use keyword arguments for clarity and to ensure correct binding.
+        return mx_linear.linear(
+            input_tensor,
             weight,
-            bias,  # Pass bias directly - it will be quantized inside mx.linear
-            mx_specs
+            bias=bias,
+            mx_specs=mx_specs,
         )
     except Exception as e:
-        logger.warning(f"MX linear failed, falling back to standard: {e}")
-        return F.linear(input_tensor, weight, bias)
+        # Fail loudly so we do not silently benchmark a non-MX path.
+        raise RuntimeError(f"MX linear failed (USE_MX_QUANTIZATION=1): {e}") from e
 
 
 @use_kernel_forward_from_hub("RMSNorm")
@@ -257,6 +274,32 @@ def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
+def eager_attention_forward(
+    module: nn.Module,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attention_mask: Optional[torch.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs: Unpack[TransformersKwargs],
+):
+    key_states = repeat_kv(key, module.num_key_value_groups)
+    value_states = repeat_kv(value, module.num_key_value_groups)
+
+    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
+    if attention_mask is not None:
+        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+        attn_weights = attn_weights + causal_mask
+
+    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+    attn_output = torch.matmul(attn_weights, value_states)
+    attn_output = attn_output.transpose(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 class LlamaMLP(nn.Module):
     """
     Llama Multi-Layer Perceptron with MX Quantization (Exercise 1).
@@ -327,23 +370,11 @@ class LlamaMLP(nn.Module):
 
 
 class LlamaAttention(nn.Module):
+    """Multi-headed attention from 'Attention Is All You Need' paper.
+
+    Exercise 1 modification: route Q/K/V/O projections through MX quantized linear.
     """
-    Multi-headed attention with MX Quantization (Exercise 1).
-    
-    Implements scaled dot-product attention with rotary position embeddings (RoPE).
-    
-    Modifications for Exercise 1:
-        - q_proj: MX-quantized (hidden_size → num_heads * head_dim)
-        - k_proj: MX-quantized (hidden_size → num_kv_heads * head_dim)
-        - v_proj: MX-quantized (hidden_size → num_kv_heads * head_dim)
-        - o_proj: MX-quantized (num_heads * head_dim → hidden_size)
-        - All use fp4_e2m1 weights, fp6_e2m3 activations
-    
-    Args:
-        config (LlamaConfig): Model configuration
-        layer_idx (int): Layer index for caching
-    """
-    
+
     def __init__(self, config: LlamaConfig, layer_idx: int):
         super().__init__()
         self.config = config
@@ -354,10 +385,8 @@ class LlamaAttention(nn.Module):
         self.attention_dropout = config.attention_dropout
         self.is_causal = True
 
-        # Store MX specs
         self.mx_specs = EXERCISE1_MX_SPECS if USE_MX_QUANTIZATION else None
 
-        # Projection layers (weights stored as nn.Linear, forward uses MX)
         self.q_proj = nn.Linear(
             config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.attention_bias
         )
@@ -371,33 +400,19 @@ class LlamaAttention(nn.Module):
             config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.attention_bias
         )
 
+    @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def forward(
         self,
         hidden_states: torch.Tensor,
-        position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        past_key_value: Optional[Cache] = None,
+        position_embeddings: tuple[torch.Tensor, torch.Tensor],
+        attention_mask: Optional[torch.Tensor],
+        past_key_values: Optional[Cache] = None,
         cache_position: Optional[torch.LongTensor] = None,
-        **kwargs,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        """
-        Forward pass with MX-quantized projections.
-        
-        Args:
-            hidden_states: Input tensor [batch_size, seq_len, hidden_size]
-            position_embeddings: RoPE embeddings (cos, sin)
-            attention_mask: Attention mask [batch_size, 1, seq_len, seq_len]
-            past_key_value: Cached keys/values for generation
-            cache_position: Position indices for caching
-        
-        Returns:
-            Tuple of (attn_output, attn_weights)
-            - attn_output: [batch_size, seq_len, hidden_size]
-            - attn_weights: [batch_size, num_heads, seq_len, seq_len] or None
-        """
-        bsz, q_len, _ = hidden_states.size()
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        input_shape = hidden_states.shape[:-1]
+        hidden_shape = (*input_shape, -1, self.head_dim)
 
-        # Apply MX-quantized projections
         if USE_MX_QUANTIZATION and self.mx_specs is not None:
             query_states = apply_mx_linear(hidden_states, self.q_proj.weight, self.q_proj.bias, self.mx_specs)
             key_states = apply_mx_linear(hidden_states, self.k_proj.weight, self.k_proj.bias, self.mx_specs)
@@ -407,48 +422,38 @@ class LlamaAttention(nn.Module):
             key_states = self.k_proj(hidden_states)
             value_states = self.v_proj(hidden_states)
 
-        # Reshape for multi-head attention
-        query_states = query_states.view(bsz, q_len, self.config.num_attention_heads, self.head_dim).transpose(1, 2)
-        key_states = key_states.view(bsz, q_len, self.config.num_key_value_heads, self.head_dim).transpose(1, 2)
-        value_states = value_states.view(bsz, q_len, self.config.num_key_value_heads, self.head_dim).transpose(1, 2)
+        query_states = query_states.view(hidden_shape).transpose(1, 2)
+        key_states = key_states.view(hidden_shape).transpose(1, 2)
+        value_states = value_states.view(hidden_shape).transpose(1, 2)
 
-        # Apply rotary position embeddings
-        if position_embeddings is not None:
-            cos, sin = position_embeddings
-            query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+        cos, sin = position_embeddings
+        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        # Update cache if needed
-        if past_key_value is not None:
-            cache_kwargs = {"cache_position": cache_position}
-            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
+        if past_key_values is not None:
+            # sin and cos are specific to RoPE models; cache_position needed for the static cache
+            cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
-        # Repeat k/v heads if necessary (for grouped-query attention)
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        # Compute attention scores
-        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) * self.scaling
+        attn_output, attn_weights = attention_interface(
+            self,
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            dropout=0.0 if not self.training else self.attention_dropout,
+            scaling=self.scaling,
+            **kwargs,
+        )
 
-        # Apply attention mask
-        if attention_mask is not None:
-            causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-            attn_weights = attn_weights + causal_mask
-
-        # Softmax and dropout
-        attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
-        attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-
-        # Compute attention output
-        attn_output = torch.matmul(attn_weights, value_states)
-        attn_output = attn_output.transpose(1, 2).contiguous()
-        attn_output = attn_output.reshape(bsz, q_len, -1)
-
-        # Apply output projection with MX quantization
+        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
         if USE_MX_QUANTIZATION and self.mx_specs is not None:
             attn_output = apply_mx_linear(attn_output, self.o_proj.weight, self.o_proj.bias, self.mx_specs)
         else:
             attn_output = self.o_proj(attn_output)
-
         return attn_output, attn_weights
 
 

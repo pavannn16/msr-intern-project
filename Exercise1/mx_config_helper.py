@@ -28,7 +28,7 @@ def create_mx_specs_exercise1(
     block_size: int = 32,
     custom_cuda: bool = True,
     quantize_backprop: bool = False,
-    round_mode: str = 'nearest'
+    round_mode: str = 'even'
 ) -> Dict[str, Any]:
     """
     Create MX specifications for Exercise 1: Linear Layer Quantization.
@@ -58,7 +58,7 @@ def create_mx_specs_exercise1(
             
         round_mode (str): Rounding behavior for quantization.
             Options: 'nearest', 'floor', 'even'
-            Default: 'nearest'
+            Default: 'even'
     
     Returns:
         Dict[str, Any]: MX specs dictionary ready for use with mx.linear()
