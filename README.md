@@ -20,7 +20,7 @@ msr-intern-project/
 ├── results/                    # Evaluation results
 │   ├── baseline_results.txt
 │   ├── exercise1_results.txt
-│   └── exercise2_results.txt
+│   └── exercise2_results.txt    # (pending)
 └── report/                     # Final report and analysis
     └── technical_report.md
 ```
@@ -63,7 +63,7 @@ This repository is **PRIVATE** to comply with Microsoft NDA requirements. All wo
 - [x] Environment setup
 - [x] Baseline evaluation (62.10% accuracy) ✅
 - [x] Exercise 1: Linear layer quantization (implementation complete) ✅
-- [ ] Exercise 1: Evaluation & results
+- [x] Exercise 1: Evaluation & results (currently below target accuracy)
 - [ ] Exercise 2: KV cache quantization
 - [ ] Exercise 3: E5M3 scale factor (optional)
 - [ ] Technical report
@@ -79,4 +79,4 @@ This repository is **PRIVATE** to comply with Microsoft NDA requirements. All wo
 Pavan Chauhan - pavanc1604@gmail.com
 
 ---
-*Last Updated: January 29, 2026*
+*Last Updated: January 31, 2026*

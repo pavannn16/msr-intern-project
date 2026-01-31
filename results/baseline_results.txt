@@ -1,0 +1,21 @@
+Baseline Evaluation Results
+==================================================
+Timestamp: 2026-01-29 23:16:45
+Model: meta-llama/Llama-3.2-1B
+Task: lambada_openai
+Device: CUDA
+Batch Size: 32
+Dataset: lambada_openai (5153 samples)
+
+Results:
+Accuracy: 0.6210 (62.10%)
+Perplexity: 5.4296 ± 0.1285
+Stderr: ± 0.0068
+Runtime: ~22 seconds (evaluation only)
+
+Notes:
+- Baseline achieved 62.10% accuracy, very close to expected ~62.24%
+- Used full dataset (5153 samples) with batch size 32
+- Evaluation completed successfully on CUDA device
+- This serves as the reference for comparing quantized model performance
+- Source of truth was initially recorded at repo root in baseline_results.txt

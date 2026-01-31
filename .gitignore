@@ -65,3 +65,7 @@ logs/
 results/*.json
 results/*.csv
 results/*.txt
+
+# Keep canonical summary artifacts
+!results/baseline_results.txt
+!results/exercise1_results.txt

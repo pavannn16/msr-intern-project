@@ -1,0 +1,45 @@
+Exercise 1 Evaluation Results (MX Quantization)
+==================================================
+Timestamp: 2026-01-31
+Model: meta-llama/Llama-3.2-1B
+Task: lambada_openai
+Device: CUDA
+Batch Size: 32
+Dataset: lambada_openai (5153 samples)
+
+Goal / Success Criteria:
+- Apply MX to 7 projections per decoder block: Q/K/V/O + MLP gate/up/down
+- Target formats: fp4_e2m1 (weights) + fp6_e2m3 (activations)
+- Accuracy target: > 60% (i.e., < 2% degradation from baseline 62.10%)
+
+Baseline (MX off):
+- Accuracy: 0.6210 (62.10%)
+- Stderr: ± 0.0068
+- Runtime: ~22 seconds (evaluation only)
+
+MX Configuration (target):
+- USE_MX_QUANTIZATION=1
+- MX_W_ELEM_FORMAT=fp4_e2m1
+- MX_A_ELEM_FORMAT=fp6_e2m3
+- MX_BLOCK_SIZE=32
+- MX_SCALE_BITS=8
+- MX_SHARED_EXP_METHOD=max
+- MX_ROUND=even
+- MX_CUSTOM_CUDA=1
+
+Results (full eval):
+- MX full (fp4 weights + fp6 activations): 0.5067 (50.67%)  ± 0.0070
+- MX full (custom_cuda=0):               0.5084 (50.84%)  ± 0.0070
+- MX weights-only (a=None):              0.5176 (51.76%)  ± 0.0070
+
+Quick smoke test (limit=0.1):
+- MX full (fp4/fp6):                     0.5000 (50.00%)  ± 0.0220
+
+Summary:
+- Baseline matches expected (~62%), confirming correct evaluation setup.
+- MX quantization is active but currently causes a large accuracy drop (~11.4pp).
+- custom_cuda toggle does not materially change accuracy in this configuration.
+- weights-only still degrades accuracy, indicating regression is not only activation quantization.
+
+Primary evidence source:
+- Exercise1/exercise1_evaluation.ipynb (Step 8 / Step 10 outputs)

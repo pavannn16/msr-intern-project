@@ -1,12 +1,8 @@
 # Exercise 1: Summary & Technical Overview
 
-## 🎯 Mission Accomplished
+## 🎯 Current Status
 
-Successfully implemented Microxcaling (MX) quantization on all linear layers of Llama-3.2-1B, demonstrating:
-- **Deep technical understanding** of quantization techniques
-- **Clean code implementation** following best practices
-- **Comprehensive documentation** for maintainability
-- **Research-oriented approach** to ambiguous requirements
+MX quantization is implemented and deployed for the 7 target linear projections per decoder block (Q/K/V/O + MLP gate/up/down). Baseline evaluation matches expected accuracy, but the current MX configuration causes a substantial accuracy regression on `lambada_openai` and does not meet the target threshold yet.
 
 ---
 
@@ -151,8 +147,9 @@ Exercise1/
 ├── scripts/
 │   └── setup_exercise1.sh             # Automated setup script
 ├── exercise1_evaluation.ipynb         # Evaluation notebook
-└── results/
-    └── exercise1_results.txt          # Evaluation metrics
+
+results/
+└── exercise1_results.txt              # Canonical evaluation metrics
 ```
 
 ### Documentation Quality
@@ -220,7 +217,8 @@ Exercise1/
 ### Accuracy Target
 - **Baseline**: 62.10%
 - **Target**: > 60% (< 2% degradation)
-- **Status**: To be measured
+- **Measured (MX full: fp4_e2m1 weights + fp6_e2m3 activations)**: 50.67%
+- **Status**: Below target (≈ -11.43pp vs baseline)
 
 ---
 
