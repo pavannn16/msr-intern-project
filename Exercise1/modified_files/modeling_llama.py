@@ -83,20 +83,42 @@ def create_mx_specs_exercise1() -> dict:
     if not MX_AVAILABLE:
         return {}
 
+    def _env_bool(name: str, default: bool) -> bool:
+        v = os.environ.get(name)
+        if v is None:
+            return default
+        return v.strip().lower() in {"1", "true", "t", "yes", "y"}
+
+    def _env_str_or_none(name: str, default: str | None) -> str | None:
+        v = os.environ.get(name)
+        if v is None:
+            return default
+        v = v.strip()
+        if v.lower() in {"none", "null", ""}:
+            return None
+        return v
+
     mx_specs = MxSpecs()
 
-    mx_specs["scale_bits"] = 8
-    mx_specs["block_size"] = 32
-    mx_specs["shared_exp_method"] = "max"
+    # Core MX parameters (allow runtime override)
+    mx_specs["scale_bits"] = int(os.environ.get("MX_SCALE_BITS", "8"))
+    mx_specs["block_size"] = int(os.environ.get("MX_BLOCK_SIZE", "32"))
+    mx_specs["shared_exp_method"] = os.environ.get("MX_SHARED_EXP_METHOD", "max")
 
-    mx_specs["w_elem_format"] = "fp4_e2m1"
-    mx_specs["a_elem_format"] = "fp6_e2m3"
+    # Element formats (forward)
+    mx_specs["w_elem_format"] = _env_str_or_none("MX_W_ELEM_FORMAT", "fp4_e2m1")
+    mx_specs["a_elem_format"] = _env_str_or_none("MX_A_ELEM_FORMAT", "fp6_e2m3")
 
-    mx_specs["custom_cuda"] = True
+    # Backend selection
+    mx_specs["custom_cuda"] = _env_bool("MX_CUSTOM_CUDA", True)
     mx_specs["quantize_backprop"] = False
 
-    # Round-to-nearest-even is typically the most numerically stable choice.
-    mx_specs["round"] = "even"
+    # Rounding: use RNE and explicitly propagate to the keys used by MX internals.
+    round_mode = os.environ.get("MX_ROUND", "even").strip()
+    mx_specs["round"] = round_mode
+    mx_specs["round_weight"] = round_mode
+    mx_specs["round_output"] = round_mode
+    mx_specs["round_mx_output"] = round_mode
 
     # Keep vector ops at full precision.
     mx_specs["bfloat"] = 0
